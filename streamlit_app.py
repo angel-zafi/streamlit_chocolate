@@ -89,20 +89,24 @@ def render_chartjs_line(labels, values, title="Sales Trend"):
 df = load_data()
 model = load_model()
 
-# Global sidebar control (shared)
+# -------------------------
+# "SUBNAV" UNDER TITLE
+# -------------------------
+page = st.radio(
+    "Navigation",
+    ["Prediction", "Trend"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+# -------------------------
+# SIDEBAR (CHANGES BY PAGE)
+# -------------------------
 with st.sidebar:
     st.header("Controls")
     show_data = st.toggle("Show dataset preview", False)
 
-tab_pred, tab_trend = st.tabs(["Prediction", "Trend"])
-
-
-
-
-# PREDICTION TAB
-
-with tab_pred:
-    with st.sidebar:
+    if page == "Prediction":
         st.subheader("Prediction Inputs")
 
         sales_person = st.selectbox("Sales Person", sorted(df["Sales Person"].unique()))
@@ -127,36 +131,16 @@ with tab_pred:
 
         predict = st.button("Predict Sales Amount")
 
-    st.subheader("Prediction")
-
-    if predict:
-        input_df = pd.DataFrame([{
-            "Sales Person": sales_person,
-            "Country": country,
-            "Product": product,
-            "Boxes Shipped": boxes_shipped,
-            "Month": month,
-            "Year": year
-        }])
-
-        pred = model.predict(input_df)[0]
-        st.success(f"Predicted Sales Amount: ${pred:,.2f}")
-
-
-
-# TREND TAB
-
-with tab_trend:
-    trend_monthly = (
-        df.set_index("Date")
-          .sort_index()
-          .resample("MS")["Amount"]
-          .sum()
-          .reset_index()
-    )
-
-    with st.sidebar:
+    else:
         st.subheader("Trend Filter")
+
+        trend_monthly = (
+            df.set_index("Date")
+              .sort_index()
+              .resample("MS")["Amount"]
+              .sum()
+              .reset_index()
+        )
 
         min_month = trend_monthly["Date"].min().to_pydatetime()
         max_month = trend_monthly["Date"].max().to_pydatetime()
@@ -169,7 +153,37 @@ with tab_trend:
             format="YYYY-MM"
         )
 
+# -------------------------
+# MAIN CONTENT (CHANGES BY PAGE)
+# -------------------------
+if page == "Prediction":
+    st.subheader("Prediction")
+
+    if "predict" in locals() and predict:
+        input_df = pd.DataFrame([{
+            "Sales Person": sales_person,
+            "Country": country,
+            "Product": product,
+            "Boxes Shipped": boxes_shipped,
+            "Month": month,
+            "Year": year
+        }])
+
+        pred = model.predict(input_df)[0]
+        st.success(f"Predicted Sales Amount: ${pred:,.2f}")
+
+else:
+    st.subheader("Overall Sales Trend (Monthly)")
+
     start_dt, end_dt = month_range
+
+    trend_monthly = (
+        df.set_index("Date")
+          .sort_index()
+          .resample("MS")["Amount"]
+          .sum()
+          .reset_index()
+    )
 
     filtered_trend = trend_monthly[
         (trend_monthly["Date"] >= pd.to_datetime(start_dt))
@@ -179,13 +193,11 @@ with tab_trend:
     labels = filtered_trend["Date"].dt.strftime("%Y-%m").tolist()
     values = filtered_trend["Amount"].round(2).tolist()
 
-    st.subheader("Overall Sales Trend (Monthly)")
     render_chartjs_line(labels, values, title="Total Sales Amount")
 
-
-
-
-# DATA PREVIEW
+# -------------------------
+# DATA PREVIEW (OPTIONAL / SHARED)
+# -------------------------
 if show_data:
     st.subheader("Dataset Preview")
     st.dataframe(df.head(10))
