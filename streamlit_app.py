@@ -181,9 +181,3 @@ values = filtered_trend["Amount"].round(2).tolist()
 
 st.subheader("Overall Sales Trend (Monthly)")
 render_chartjs_line(labels, values, title="Total Sales Amount")
-
-labels = trend_monthly["Date"].dt.strftime("%Y-%m").tolist()
-values = trend_monthly["Amount"].round(2).tolist()
-
-st.subheader("Overall Sales Trend (Monthly)")
-render_chartjs_line(labels, values, title="Total Sales Amount")
