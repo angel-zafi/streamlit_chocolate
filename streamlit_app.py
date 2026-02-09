@@ -8,6 +8,51 @@ st.set_page_config(page_title="Chocolate Sales Revenue Prediction", layout="cent
 st.title("Chocolate Sales Revenue Prediction")
 st.caption("Predict expected sales amount based on product, country, sales person, shipment quantity, and time period")
 
+# -------------------------
+# CSS: make radio look like tabs
+# -------------------------
+st.markdown(
+    """
+    <style>
+    /* Hide the actual radio circles */
+    div[data-testid="stRadio"] input { display: none !important; }
+
+    /* Make the radio group look like a tab bar */
+    div[data-testid="stRadio"] > div[role="radiogroup"]{
+        display: flex;
+        gap: 18px;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+        padding-bottom: 8px;
+        margin: 8px 0 14px 0;
+    }
+
+    /* Each "tab" */
+    div[data-testid="stRadio"] label{
+        padding: 8px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        opacity: 0.75;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        user-select: none;
+    }
+
+    div[data-testid="stRadio"] label:hover{
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+
+    /* Selected tab styling (Streamlit sets aria-checked on the label wrapper) */
+    div[data-testid="stRadio"] label:has(input[aria-checked="true"]){
+        opacity: 1;
+        font-weight: 700;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.06);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 @st.cache_data
 def load_data():
     df = pd.read_csv("Chocolate Sales (2).csv")
@@ -90,7 +135,7 @@ df = load_data()
 model = load_model()
 
 # -------------------------
-# "SUBNAV" UNDER TITLE
+# Subnav (looks like tabs now)
 # -------------------------
 page = st.radio(
     "Navigation",
@@ -100,7 +145,7 @@ page = st.radio(
 )
 
 # -------------------------
-# SIDEBAR (CHANGES BY PAGE)
+# Sidebar: shared + conditional
 # -------------------------
 with st.sidebar:
     st.header("Controls")
@@ -154,7 +199,7 @@ with st.sidebar:
         )
 
 # -------------------------
-# MAIN CONTENT (CHANGES BY PAGE)
+# Main: Prediction page
 # -------------------------
 if page == "Prediction":
     st.subheader("Prediction")
@@ -172,6 +217,30 @@ if page == "Prediction":
         pred = model.predict(input_df)[0]
         st.success(f"Predicted Sales Amount: ${pred:,.2f}")
 
+    # ✅ Bonus graph: historical trend for chosen Sales Person
+    st.subheader(f"{sales_person} — Historical Sales Trend (Monthly)")
+
+    sp_df = df[df["Sales Person"] == sales_person].copy()
+
+    sp_monthly = (
+        sp_df.set_index("Date")
+             .sort_index()
+             .resample("MS")["Amount"]
+             .sum()
+             .reset_index()
+    )
+
+    labels = sp_monthly["Date"].dt.strftime("%Y-%m").tolist()
+    values = sp_monthly["Amount"].round(2).tolist()
+
+    if len(labels) == 0:
+        st.info("No historical sales data available for this sales person.")
+    else:
+        render_chartjs_line(labels, values, title=f"{sales_person} Total Sales Amount")
+
+# -------------------------
+# Main: Trend page
+# -------------------------
 else:
     st.subheader("Overall Sales Trend (Monthly)")
 
@@ -196,7 +265,7 @@ else:
     render_chartjs_line(labels, values, title="Total Sales Amount")
 
 # -------------------------
-# DATA PREVIEW (OPTIONAL / SHARED)
+# Optional dataset preview
 # -------------------------
 if show_data:
     st.subheader("Dataset Preview")
