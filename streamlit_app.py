@@ -37,9 +37,7 @@ def load_model():
 df = load_data()
 model = load_model()
 
-# =========================
 # SIDEBAR CONTROLS
-# =========================
 with st.sidebar:
     st.header("Controls")
 
@@ -68,9 +66,8 @@ with st.sidebar:
 
     predict = st.button("Predict Sales Amount")
 
-# =========================
+
 # MAIN AREA (for graphs later)
-# =========================
 st.subheader("Prediction")
 
 if predict:
@@ -144,8 +141,10 @@ def render_chartjs_line(labels, values, title="Sales Trend"):
     """
     html(chart_html, height=460)
 
-# ---- Example usage with your df ----
-# df must already contain Date (datetime) and Amount (numeric)
+
+
+
+
 
 trend_monthly = (
     df.dropna(subset=["Date", "Amount"])
