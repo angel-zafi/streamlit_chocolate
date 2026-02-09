@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
 import json
 from streamlit.components.v1 import html
@@ -26,67 +25,13 @@ def load_data():
     df["Month"] = df["Date"].dt.month
     df["Year"] = df["Date"].dt.year
 
-    df = df.dropna(subset=["Amount", "Boxes Shipped", "Month", "Year", "Sales Person", "Country", "Product"])
+    df = df.dropna(subset=["Amount", "Boxes Shipped", "Month", "Year", "Sales Person", "Country", "Product", "Date"])
     df = df.drop_duplicates()
     return df
 
 @st.cache_resource
 def load_model():
     return joblib.load("chocolate_sales_model.pkl")
-
-df = load_data()
-model = load_model()
-
-# SIDEBAR CONTROLS
-with st.sidebar:
-    st.header("Controls")
-
-    show_data = st.toggle("Show dataset preview", False)
-
-    st.subheader("Inputs")
-    sales_person = st.selectbox("Sales Person", sorted(df["Sales Person"].unique()))
-    country = st.selectbox("Country", sorted(df["Country"].unique()))
-    product = st.selectbox("Product", sorted(df["Product"].unique()))
-
-    boxes_shipped = st.number_input(
-        "Boxes Shipped",
-        min_value=int(df["Boxes Shipped"].min()),
-        max_value=int(df["Boxes Shipped"].max()),
-        value=int(df["Boxes Shipped"].median()),
-        step=1
-    )
-
-    month = st.slider("Month", 1, 12, int(df["Month"].median()))
-    year = st.slider(
-        "Year",
-        int(df["Year"].min()),
-        int(df["Year"].max()),
-        int(df["Year"].median())
-    )
-
-    predict = st.button("Predict Sales Amount")
-
-
-# MAIN AREA (for graphs later)
-st.subheader("Prediction")
-
-if predict:
-    input_df = pd.DataFrame([{
-        "Sales Person": sales_person,
-        "Country": country,
-        "Product": product,
-        "Boxes Shipped": boxes_shipped,
-        "Month": month,
-        "Year": year
-    }])
-
-    pred = model.predict(input_df)[0]
-    st.success(f"Predicted Sales Amount: ${pred:,.2f}")
-
-if show_data:
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head(10))
-
 
 def render_chartjs_line(labels, values, title="Sales Trend"):
     labels_json = json.dumps(labels)
@@ -141,43 +86,106 @@ def render_chartjs_line(labels, values, title="Sales Trend"):
     """
     html(chart_html, height=460)
 
+df = load_data()
+model = load_model()
 
-
-
-
-
-trend_monthly = (
-    df.dropna(subset=["Date", "Amount"])
-      .set_index("Date")
-      .sort_index()
-      .resample("MS")["Amount"]
-      .sum()
-      .reset_index()
-)
-
+# Global sidebar control (shared)
 with st.sidebar:
-    st.subheader("Trend Filter (Month Range)")
+    st.header("Controls")
+    show_data = st.toggle("Show dataset preview", False)
 
-    min_month = trend_monthly["Date"].min().to_pydatetime()
-    max_month = trend_monthly["Date"].max().to_pydatetime()
+tab_pred, tab_trend = st.tabs(["Prediction", "Trend"])
 
-    month_range = st.slider(
-        "Select month range",
-        min_value=min_month,
-        max_value=max_month,
-        value=(min_month, max_month),
-        format="YYYY-MM"
+
+
+
+# PREDICTION TAB
+
+with tab_pred:
+    with st.sidebar:
+        st.subheader("Prediction Inputs")
+
+        sales_person = st.selectbox("Sales Person", sorted(df["Sales Person"].unique()))
+        country = st.selectbox("Country", sorted(df["Country"].unique()))
+        product = st.selectbox("Product", sorted(df["Product"].unique()))
+
+        boxes_shipped = st.number_input(
+            "Boxes Shipped",
+            min_value=int(df["Boxes Shipped"].min()),
+            max_value=int(df["Boxes Shipped"].max()),
+            value=int(df["Boxes Shipped"].median()),
+            step=1
+        )
+
+        month = st.slider("Month", 1, 12, int(df["Month"].median()))
+        year = st.slider(
+            "Year",
+            int(df["Year"].min()),
+            int(df["Year"].max()),
+            int(df["Year"].median())
+        )
+
+        predict = st.button("Predict Sales Amount")
+
+    st.subheader("Prediction")
+
+    if predict:
+        input_df = pd.DataFrame([{
+            "Sales Person": sales_person,
+            "Country": country,
+            "Product": product,
+            "Boxes Shipped": boxes_shipped,
+            "Month": month,
+            "Year": year
+        }])
+
+        pred = model.predict(input_df)[0]
+        st.success(f"Predicted Sales Amount: ${pred:,.2f}")
+
+
+
+# TREND TAB
+
+with tab_trend:
+    trend_monthly = (
+        df.set_index("Date")
+          .sort_index()
+          .resample("MS")["Amount"]
+          .sum()
+          .reset_index()
     )
 
-start_dt, end_dt = month_range
+    with st.sidebar:
+        st.subheader("Trend Filter")
 
-filtered_trend = trend_monthly[
-    (trend_monthly["Date"] >= pd.to_datetime(start_dt))
-    & (trend_monthly["Date"] <= pd.to_datetime(end_dt))
-].copy()
+        min_month = trend_monthly["Date"].min().to_pydatetime()
+        max_month = trend_monthly["Date"].max().to_pydatetime()
 
-labels = filtered_trend["Date"].dt.strftime("%Y-%m").tolist()
-values = filtered_trend["Amount"].round(2).tolist()
+        month_range = st.slider(
+            "Select month range",
+            min_value=min_month,
+            max_value=max_month,
+            value=(min_month, max_month),
+            format="YYYY-MM"
+        )
 
-st.subheader("Overall Sales Trend (Monthly)")
-render_chartjs_line(labels, values, title="Total Sales Amount")
+    start_dt, end_dt = month_range
+
+    filtered_trend = trend_monthly[
+        (trend_monthly["Date"] >= pd.to_datetime(start_dt))
+        & (trend_monthly["Date"] <= pd.to_datetime(end_dt))
+    ].copy()
+
+    labels = filtered_trend["Date"].dt.strftime("%Y-%m").tolist()
+    values = filtered_trend["Amount"].round(2).tolist()
+
+    st.subheader("Overall Sales Trend (Monthly)")
+    render_chartjs_line(labels, values, title="Total Sales Amount")
+
+
+
+
+# DATA PREVIEW
+if show_data:
+    st.subheader("Dataset Preview")
+    st.dataframe(df.head(10))
