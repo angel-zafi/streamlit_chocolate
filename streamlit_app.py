@@ -155,6 +155,33 @@ trend_monthly = (
       .reset_index()
 )
 
+with st.sidebar:
+    st.subheader("Trend Filter (Month Range)")
+
+    min_month = trend_monthly["Date"].min().to_pydatetime()
+    max_month = trend_monthly["Date"].max().to_pydatetime()
+
+    month_range = st.slider(
+        "Select month range",
+        min_value=min_month,
+        max_value=max_month,
+        value=(min_month, max_month),
+        format="YYYY-MM"
+    )
+
+start_dt, end_dt = month_range
+
+filtered_trend = trend_monthly[
+    (trend_monthly["Date"] >= pd.to_datetime(start_dt))
+    & (trend_monthly["Date"] <= pd.to_datetime(end_dt))
+].copy()
+
+labels = filtered_trend["Date"].dt.strftime("%Y-%m").tolist()
+values = filtered_trend["Amount"].round(2).tolist()
+
+st.subheader("Overall Sales Trend (Monthly)")
+render_chartjs_line(labels, values, title="Total Sales Amount")
+
 labels = trend_monthly["Date"].dt.strftime("%Y-%m").tolist()
 values = trend_monthly["Amount"].round(2).tolist()
 
