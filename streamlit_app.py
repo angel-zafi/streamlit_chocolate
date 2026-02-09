@@ -217,7 +217,6 @@ if page == "Prediction":
         pred = model.predict(input_df)[0]
         st.success(f"Predicted Sales Amount: ${pred:,.2f}")
 
-    # ✅ Bonus graph: historical trend for chosen Sales Person
     st.subheader(f"{sales_person} — Historical Sales Trend (Monthly)")
 
     sp_df = df[df["Sales Person"] == sales_person].copy()
@@ -264,9 +263,8 @@ else:
 
     render_chartjs_line(labels, values, title="Total Sales Amount")
 
-# -------------------------
-# Optional dataset preview
-# -------------------------
+
+
 if show_data:
     st.subheader("Dataset Preview")
     st.dataframe(df.head(10))
